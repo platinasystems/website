@@ -5,8 +5,8 @@
 
 1. [ Table of Contents](#tableofcontents)
 1. [ Installation](#installation)
-   1. [ Unpacking Platina Edge Device](#unpackingplatinaedgedevice)
-   1. [ Rack-mounting Platina Edge Device](#rackmountingplatinaedgedevice)
+   1. [ Unpacking Platina Cluster Head](#unpackingplatinaedgedevice)
+   1. [ Rack-mounting Platina Cluster Head](#rackmountingplatinaedgedevice)
 1. [ Administration](#administration)
    1. [ Quick Start Guide](#quickstartguide)
    1. [ General Architecture](#generalarchitecture)
@@ -55,7 +55,7 @@
 
 # Installation
 
-## Unpacking Platina Edge Device
+## Unpacking Platina Cluster Head
 
 The shipped package includes the following items:
  * 1 Platina Cluster Head with model number matching the packing slip
@@ -66,7 +66,7 @@ The shipped package includes the following items:
 
 ![](images/01-ll-optics.png)
 
-## Rack-mounting Platina Edge Device
+## Rack-mounting Platina Cluster Head
 
 This procedure is used to rack mount the Platina Cluster Head to a rack. It requires two people. Refer to the pictures below for the procedure. If Platina Cluster Head will be free-standing on a bench, then this procedure can be skipped and the footpad kit can be installed for bench use.
 
