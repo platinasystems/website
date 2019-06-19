@@ -58,7 +58,7 @@
 ## Unpacking Platina Edge Device
 
 The shipped package includes the following items:
- * 1 Platina Appliance Head Device with model number matching the packing slip
+ * 1 Platina Cluster Head with model number matching the packing slip
  * 2 AC power cords
  * 1 console cable with RJ45 to DB9 adapter for use when connecting the console direct to a laptop or other host.
  * 1 rack mount ear kit
@@ -68,7 +68,7 @@ The shipped package includes the following items:
 
 ## Rack-mounting Platina Edge Device
 
-This procedure is used to rack mount the Platina Appliance Head Device to a rack. It requires two people. Refer to the pictures below for the procedure. If Platina Appliance Head Device will be free-standing on a bench, then this procedure can be skipped and the footpad kit can be installed for bench use.
+This procedure is used to rack mount the Platina Cluster Head to a rack. It requires two people. Refer to the pictures below for the procedure. If Platina Cluster Head will be free-standing on a bench, then this procedure can be skipped and the footpad kit can be installed for bench use.
 
 ![](images/02-box.png)
 
@@ -76,7 +76,7 @@ This procedure is used to rack mount the Platina Appliance Head Device to a rack
 2. Install the rear mount kit, as shown in second picture above if the rack is a 4-post rack. These brackets are not required if the rack is a 2-post rack.
 3. Install the device in the rack. One person should lift the device into the rack to align the front rack brackets with the marked holes. A second person should secure the device in the rack using four rack-mounting screws (not provided).
 4. If using the rear brackets, slide in the second portion and adjust until holes are align. Secure in place using rack-mounting screws (not provided).
-5. Connect AC power to Platina Appliance Head Device.
+5. Connect AC power to Platina Cluster Head.
 6. Verify basic switch operation by checking the status of the switch status LEDs. When operating normally the LEDs should be green.
 
 ![](images/03-box.png)
@@ -272,7 +272,7 @@ configured using ethtool.
 
 The default naming convention for the ports is *xeth* followed by the front
 panel port number (ie, 1-32). For example, the interface *xeth12* corresponds
-to the front panel port labeled *12* on the Appliance Head Device.
+to the front panel port labeled *12* on the Cluster Head.
 
 In cases where the front panel port is split into lanes, each lane will be
 presented as a separate network interface. For example, if port 12 is split
@@ -862,7 +862,7 @@ mv platina-mk1.xml /usr/local/share/flashrom/layouts
 
 ### Getting to the BMC Console
 
-The RS-232 port on the front of the appliance is used to drive the system console of the Platina appliance _and_ the console of the Baseboard Management Controller (BMC). This section demonstrates how to toggle between the BMC console and the system console.
+The RS-232 port on the front of the Cluster Head is used to drive the system console of the Platina Cluster Head _and_ the console of the Baseboard Management Controller (BMC). This section demonstrates how to toggle between the BMC console and the system console.
 
 To switch to BMC console:
 
