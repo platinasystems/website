@@ -878,6 +878,20 @@ To switch back to x86 console:
 - At the BMC console prompt, execute the `toggle` GOES command.
 - Hit return to display the Linux prompt on the system console
 
+#### Configuring static IP for the BMC processer
+
+The BMC processor has its own management interface that can be assigned a static IP address.  By default only the IPv6 link local address is assigned to it.  
+To assign a static IP address to the BMC processor, enter the following commands at the BMC console
+
+ipcfg -ip [ipaddress]::[gateway]:[mask]::eth0:on
+reboot
+Example:
+```
+ipcfg -ip 172.17.3.68::172.17.2.1:255.255.254.0::eth0:on
+reboot
+```
+The reboot only reboots the BMC processor, and takes approximately 5 seconds.  It will not impact traffic or activity on the main x86 processor or ASIC.
+
 # Support
 
 For list of known issues, please visit
