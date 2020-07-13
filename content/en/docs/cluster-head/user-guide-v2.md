@@ -175,6 +175,7 @@ which gives the following output on success:
       Check fe1       - OK
 
 GOES a systemd application, so you can also use the systemctl command to check the status, start, stop, enable, or disable the application.
+
       sudo systemctl stop goes-platina-mk1
       sudo systemctl start goes-platina-mk1
       sudo systemctl enable goes-platina-mk1
@@ -190,14 +191,137 @@ GOES binary is install in /sbin/goes-platina-mk1 when the debina package is inst
 
 <a name="redisdatabaseinterface"/>
 
+## Configuring The Platina Cluster Head
+Platina Cluster Head is a Linux server running Debian OS.  All the ASIC interfaces, funcationalities, and stats supported by GOES are avaible to configure and monitor via standard Linus tools and commands such as ethtool and iproute2.  All front panel interfaces appear in Linux as ethernet interfaces with xeth* prefix, and can be used like typical Linux interfaces as if they were part of a NIC on a server.  These interface will be often referred to as xeth interface through out this document for short.
+
+### Configuring the Breakout
+The Platina Cluster Head has 32 front-panel QSFP ports, each of which can be broken out into 1, 2, or 4 subports.  By default they are configured as single 40GE/100GE interface each.  These interfaces are created by a platina kernel module called xeth.  The breakout configurations are persisted in
+
+    /etc/modprobe.d/goes-platina-mk1-modprobe.conf
+
+with the default:
+
+options xeth platina-mk1_provision=1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+
+To breakout an QSFP port ot 2x40GE/50GE or 4x1GE/10GE/20GE/25GE, change the "1" to a "2" or "4" for the corresponding interface (the array is ordered from port1 to port32).  After the xeth provision is changed, do
+
+    sudo systemctl stop goes-platina-mk1
+    sudo rmmod xeth
+    sudo modprobe xeth
+    sudo systemctl start goes-platina-mk1
+    sudo update-initramfs -u
+
+for the new configuration to take effect and persist across reboots.
+
+When a front panel port is configured as a single 40GE/100GE interface, they are named in Linux as xeth1, xeth2, ..., or xeth32.  When an interface is broken out into 2 or 4 sub-ports, suffix are added to to indicate the subport.  For example if port2 is broken out into 2x40GE/50GE, then they will show in Linux as xeth2-1 and xeth2-2.  Similarly if port2 is broken out into 4x1GE/10GE/20GE/25GE they will show in Linux as xeth2-1, xeth2-2, xeth2-3, xeth2-4.
+
+### Configuring Interfaces
+A front-panel, or xeth, interface is like any other Linux ethernet interface.  Use iproute2, ifconfig, or any other standard Linux method to set the admin state, addresses, mtu, etc.  These xeth interface configuration can also be persisted in standard ifupdown network manager in /etc/network/
+
+### Configuring Speed/Autoneg with Ethtool
+Speed/autoneg of xeth interfaces can be configured using ethtool.  For example to configure xeth1 to 40GE fixed speed:
+
+    sudo ethtool -s xeth1 speed 40000 autoneg off
+
+To configure xeth1 to autoneg:
+
+    sudo ethtool -s xeth1 speed autoneg on
+
+The supported speeds are:
+#### Single port (e.g. xeth1)
+```
+autoneg (auto negotiate between 40GE and 100GE)
+40GE
+100GE
+```
+
+#### 2-sub-port (e.g. xeth1-1, xeth1-2)
+```
+40GE
+50GE
+```
+Note that the 2 sub-ports share the same PLL (phase-lock-loop).  Changing xeth1-1 effectively changes xeth1-2 as well; changing xeth1-2 without first changing xeth1-1 is not allow, and xeth1-2 will be set to the same speed as xeth1-1.
+
+#### 3-sub-port
+Not supported
+
+#### 4-sub-port (e.g. xeth1-1, xeth1-2, xeth1-3, xeth1-4)
+```
+autoneg
+10GE
+20GE
+25GE
+```
+Autonegotiation negotiates to 10GE only if the other end of the link supports autoneg as well.
+
+Note that the 4 sub-ports share the same PLL (phase-lock-loop).  Changing xeth1-1 may effectively change the speed of the other sub-ports as well; changing speeds on sub-port that do not match PLL of first sub-port (e.g. xeth1-1) is not allow, and a valid speed (based on the PLL of the first sub-port) will be configured instead.  Here are examples of valid configurations:
+```
+Example 1:
+xeth1-1: 10GE/20GE/autoneg
+xeth1-2: 10GE/20GE/autoneg
+xeth1-3: 10GE/20GE/autoneg
+xeth1-4: 10GE/20GE/autoneg
+
+Example 2:
+xeth1-1: 25GE
+xeth1-2: 25GE
+xeth1-1: 25GE
+xeth1-2: 25GE
+```
+### Configuring Media Type with Ethtool
+The xeth interfaces support 2 media types, copper for copper direct attach QSFP cable, and optics.  The media can be configured using ethtool, "tp" for copper and "fibre" for fiber.  Eventhough techncially copper QSFP are not twisted pair, it is the closest configuration in standard ethtool to represent copper.  Examples:
+```
+sudo ethtool -s xeth1 port tp
+sudo ethtool -s xeth1 port fibre
+```
+
+### Configuring FEC with Ethtool
+The xeth interface supports clause74 or clause91 FEC depending on the speed of the interface.  The FEC enconding can be configured using ethtool.  Examples:
+```
+sudo ethtool -s --set-fec xeth1 encoding auto
+sudo ethtool -s --set-fec xeth1 encoding rs
+sudo ethtool -s --set-fec xeth1 encoding baser
+sudo ethtool -s --set-fec xeth1 encoding off
+```
+"off" means no FEC.
+
+"rs" is reed solomon encoding per clause91, and is really applicable for 100GE standards like copper-DAC cable and 100GE-SR4.
+
+"baser" is clause74 encoding, applicable to some 50GE, 40GE, and 10GE standards.
+
+"auto" will pick clause91 for if the interface is configured for 100GE, clause74 if the interface is configured for 50GE/40GE/10GE, and none if the interface is configured for 1GE.
+
+### Interface Stats
+Simple interface counter stats are available in Linux like any other Linux interfaces.  They are available, for example, using iproute2 commands:
+```
+ip -s link show xeth1
+```
+Detailed interfaces stats like packet counters, drop counters, error counters, buffer counters, etc. are available via ethtool.  Example:
+```
+sudo ethtool -S xeth1
+```
+### QSFP stats with Ethtool
+QSFP modules are mapped into Linux devices directly.  To get QSFP module stats like tx/rx optical power, module type, etc of a QSFP port, say xeth1-1:
+```
+sudo ethool -m xeth1
+```
+In case breakout is configured on a front panel port for 2 or more sub-ports, use the lowest numbered sub-ports.  Example:
+```
+sudo ethtool -m xeth1-1
+```
+
+## Routing
+By default every interface of the Platina Cluster Head is a routed interface.  All routes in Linux kernel are automatically mapped to the ASIC, regardless of whether the routes are added to the kernel statically or from routing protocol.  The recommended and supported routing protocol to use is the open-source FRR (Free Range Routing).  Is is not installed on the unit by default, but can be installed as a debian package from the office FRR download sites.
+
+### IPV4/IPV6 Dual Stack
+In GOES v2.0 and above, both IPv4 and IPv6 are supported.  The TCAM allocation between IPv4 and IPv6 is dynamically allocated base on use.
+
+### Route Table Size and Software Forwarding
+The physical TCAM size in the ASIC is equivalent of 4k IPv4 routes.  Because it is dynamically alloated between IPv4 and IPv6, the example number of routes that are stored in TCAM varies depending on usage.  If the TCAM size is exceed, routes are cached in memory and Platina Cluster Head will automatically software forward those routes.  Once the number of routes falls within the hardware limitation, the cached routes will automatically get installed into ASIC.
+
 ## Redis Database/Interface
 
-GOES includes a Redis server daemon. Any configuration and stats not
-normally associated with Linux can be found in this Redis database. The
-GOES Redis server is a standard Redis server listening on port 6379 of
-the loopback interface and eth0. The database can be accessed remotely
-anywhere via standard Redis-client and Redis-cli using the management IP
-address.
+GOES includes a Redis server daemon. All the GOES managed configuration and stats available from ethtool are also available in redis for pub/sub.  The stats from redis is namespace agnostic so that all interfaces, regardless of what network namespaces they are in, are available from same redis database.  Furthermore, therea some stats, such as ASIC temperature, MFG eeprom contents, etc., that are available only in from redis. The GOES Redis server is a standard Redis server listening on port 6379 of the loopback interface and eth0. The database can be accessed remotely anywhere via standard Redis-client and Redis-cli using the management IP address.
 
 To invoke Redis commands directly from the Linux CLI, precede the Redis
 command with “goes”, otherwise standard Redis command format should be
@@ -225,10 +349,6 @@ enter:
     goes hget platina-mk1 xeth1
 
 Redis database is updated every 5 seconds by default for stats counters.
-The update interval for the switch ASIC stats can be changed. For
-example, to change the interval to 1 second enter:
-
-    goes hset platina-mk1 vnet.pollInterval 1
 
 Included in the GOES Redis interface is a convenience command hdelta.
 hdelta returns only the non-zero differences from the last Redis update
@@ -241,159 +361,6 @@ be invoked with the following command via CLI.
 Since the commands above are invoked at the standard Linux command line
 prompt, ‘grep’ or other Linux tools can be used to further filter the
 output.
-
-<a name="qsfp28ports"/>
-
-## QSFP28 Ports
-
-Once GOES is installed and running, all front panel ports are presented
-as normal Linux network interfaces and can be manipulated using standard
-Linux tools, such as ifup, ifdown, iproute2 and ethtool.
-
-Interface speed, media type and other lower-level functionality may be
-configured using ethtool.
-
-The default naming convention for the ports is *xeth* followed by the front
-panel port number (ie, 1-32). For example, the interface *xeth12* corresponds
-to the front panel port labeled *12* on the Cluster Head.
-
-In cases where the front panel port is split into lanes, each lane will be
-presented as a separate network interface. For example, if port 12 is split
-into 4x10GbE lanes, the corresponding interface names will be *xeth12-1*,
-*xeth12-2*, *xeth12-3* and *xeth12-4*.
-
-    - Supported Link Speeds
-      - 100G - Interface names are xethX, where X = 1 .. 32
-      - 50G  - Interface names are xethX-1,xethX-3, where X = 1 .. 32
-      - 40G  - Interface names are xethX, where X = 1 .. 32
-      - 25G  - Interface names are xethX-Y, where X = 1 .. 32, Y = 1 .. 4
-      - 10G  - Interface names are xethX-Y, where X = 1 .. 32, Y = 1 .. 4
-      - 1G   - Interface names are xethX-Y, where X = 1 .. 32, Y = 1 .. 4
-    - Each individual port can be configured independently.
-
-In order to break out ports into multiple lanes, modify the file
-`/etc/modprobe.d/goesd-platina-mk1-modprobe.conf` per these steps:
-
-1. Modify (or add) an options statement to set the *provision* module parameter for the *platina-mk1* module:
-    1. There should be one comma-separated integer for each front panel port.
-    1. Each integer represents the number of lanes to split each port into, where valid values are 1, 2 or 4.
-    1. For example, so keep all ports a single lane except ports 3, 5 and 9, which we want as four lanes, and port 7 as two lanes, the line in the file would look like this: `options platina-mk1 provision=1,1,4,1,4,1,2,1,4,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1`
-1. Remove and re-insert the platina-mk1 module:
-    1. `modprobe -r platina-mk1`
-    1. `modprobe platina-mk1`
-1. Restart GOES:
-    1. `sudo goes stop`
-    1. `sudo goes start`
-
-The above example will result in the Linux network interfaces interfaces: xeth1, xeth2, xeth3-1, xeth3-2 .. xeth3-4, xeth4, xeth5-1 .. xeth5-4, xeth6, xeth7-1, xeth7-3, xeth8, xeth9-1 .. xeth9-4,....xeth32.
-
-While reloading the kernel module and restarting GOES, there may be some
-brief disruption to network forwarding.
-
-*Note: When GOES is started, the interfaces are assigned MAC addresses
-incrementally from the built-in base MAC address. When changing a port's lane
-configuration, it is possible that the MAC addresses for each interface may
-be renumbered.*
-
-
-<a name="setmediatypeandspeed"/>
-
-## Set Media Type and Speed
-
-The standard Linux *ethtool* tool may be used to set various low-level parameters, including the media type and link speed. To set the media type to copper,
-and the link speed to 100GbE, follow these steps:
-
-1. `sudo goes stop`
-1. `sudo ethtool --set-priv-flags xeth1 copper on`
-1. `sudo ethtool -s xeth1 speed 100000 autoneg off`
-1. `sudo goes start`
-
-To have the speed autonegotiated, use the following:
-
-1. `sudo goes stop`
-1. `sudo ethtool --set-priv-flags xeth1 copper on`
-1. `sudo ethtool -s xeth1 autoneg on`
-1. `sudo goes start`
-
-*Note: At the time of writing, the media type should be set before setting
-link speed autonegotiation.*
-
-*Note: Supported link speeds are auto, 100g, 50g, 40g, 25g, 10g and 1g.*
-
-The settings do not persist across goes stop/start or reboot. To
-configure permanently, add the configuration in /etc/network/interfaces
-as described below.
-
-<a name="persistentconfiguration"/>
-
-## Persistent Configuration
-
-Each time GOES starts up, it will read the network configuration file
-/etc/network/interfaces.
-
-Following is the example network config file:
-
-    # This file describes the network interfaces available on your system*
-    # and how to activate them. For more information, see interfaces(5).
-
-    source /etc/network/interfaces.d/*
-
-    # The loopback network interface
-
-    auto lo
-    iface lo inet loopback
-
-    # The primary network interface*
-
-    allow-hotplug eth0
-    #iface eth0 inet dhcp
-
-    auto eth0
-    iface eth0 inet static
-      address 192.0.2.2
-      netmask 255.255.255.0
-      gateway 192.0.2.1
-      dns-nameservers 8.8.8.8 8.8.4.4
-
-    auto xeth1-1
-    allow-vnet xeth1-1
-    iface xeth1-1 inet static
-      address 203.0.113.2
-      netmask 255.255.255.0
-      pre-up ip link set $IFACE up
-      pre-up ethtool -s $IFACE speed 10000 autoneg off
-      pre-up ethtool --set-priv-flags $IFACE copper on
-      pre-up ethtool --set-priv-flags $IFACE fec74 on
-      pre-up ethtool --set-priv-flags $IFACE fec91 off
-      post-down ip link set $IFACE down
-
-    auto xeth1-2
-    allow-vnet xeth1-2
-    iface xeth1-2 inet static
-      address 198.51.100.2
-      netmask 255.255.255.0
-      pre-up ip link set $IFACE up
-      pre-up ethtool -s $IFACE speed 10000 autoneg off
-      pre-up ethtool --set-priv-flags $IFACE copper on
-      pre-up ethtool --set-priv-flags $IFACE fec74 on
-      pre-up ethtool --set-priv-flags $IFACE fec91 off
-      post-down ip link set $IFACE down
-
-In the example above, ethtool cmds are executed to set speed,media,fec
-for each interface.
-
-<a name="bgp"/>
-
-## BGP
-
-The trial unit does not come pre-installed with BGP. Any Open Source BGP protocol
-stack can be installed directly onto Linux as if installing on a server.
-The GOES daemon will handle any translation between the Linux kernel and
-ASIC. All FIB/RIB can be obtained directly from Linux or the BGP stack.
-
-To get the FIB from the ASIC for verification, enter:
-
-    goes vnet show ip fib
 
 <a name="appendix1redisfieldsguide"/>
 
@@ -422,52 +389,6 @@ parsed properly. For example:
     redis-cli --raw -h <ipv4_address> hget platina-mk1 xeth1
 
 <a name="fieldsthatcanbesetinplatinasredis"/>
-
-### Fields that can be set in Platina’s Redis:
-
-Most of the fields in the Platina Redis are read-only, but some can be
-set. If a set is successful, Redis will return an integer 1. Otherwise
-Redis will return an error message.
-
-<a name="statscounterupdateinterval"/>
-
-### Stats Counter Update Interval
-
-Stats counters such as transmit/receive packet counters, packet drops,
-etc. are maintained real time in hardware, but updated to Redis data at
-a fixed interval. This interval defaults to 5 seconds. This interval can
-be configured, the minimum being 1 second. Other asynchronous event,
-such as line up/down, are updated to Redis real time as the event occur.
-
-To change the Redis counter update interval.
-
-Example:
-
-    hset platina-mk1 vnet.pollInterval 1
-
-    hget platina-mk1 vnet.pollInterval 1
-    vnet.pollInterval: 1
-
-<a name="readonlyredisfields"/>
-
-### Read-only Redis Fields
-
-These fields are read only. Attempts to set them will return error
-messages.
-
-### Packages
-
-Packages shows the software version numbers of GOES. These version
-numbers match the github commit/versions in
-[*https://github.com/platinasystems*](https://github.com/platinasystems)
-from which the GOES binary is built.
-
-Example
-
-    hget platina-mk1 packages|grep "version: "
-    version: 10a3277079f775e342e48b739dd64921b22e1f6f
-    version: 6dbc2b8ffebed236ce5cc8e821815cbb25cc3525
-    version: 60f39141fbbf78ddb2260dba74c68f2789374f18
 
 ### Physical link state (as reported by switch ASIC)
 
@@ -742,71 +663,42 @@ Fan Speed
 
 # Software and Firmware Updates
 
-### Upgrading GOES-Boot
+### Updating Cluster Head Platina Debian Package
+Platina software running on the Cluster Head includes the GOES binary is userspace, xeth kernel driver, and GOES-boot which takes the place of typcial BIOS.  They are all packaged into a debian package so that dependencies and configuration are automaticallyd one on install.
 
-GOES-boot is a secure Linux-based boot program that replaces tradition BIOS.  To upgrade:
+Make sure /etc/apt source list includes
 ```
-sudo bash
-wget http://downloads.platinasystems.com/LATEST/coreboot-platina-mk1.rom
-/usr/local/sbin/flashrom -p internal:boardmismatch=force -l /usr/local/share/flashrom/layouts/platina-mk1.xml -i bios -w coreboot-platina-mk1.rom -A -V
+https://platina.io/goes/debian stretch main
 ```
-#### Protip:
-New goes-boot is now written into the flash.  It will take effect on next reboot.
-
-### Upgrading Linux Kernel
-
+Then:
 ```
-sudo bash
-wget http://downloads.platinasystems.com/LATEST/linux-image-platina-mk1-4.13.0.deb
-dpkg -i linux-image-platina-mk1-4.13.0.deb
+sudo apt-get update
+sudo apt-get install platina-mk1-release
 ```
+The package install will update the debian kernel (which include any required kernel module like xeth), GOES-boot, and GOES.
 
 #### Protip:
-A reboot is required for new kernel to take effect.
-
-As best practice, it is a good idea to remove old unused kernels using dpkg --purge command.
-
-Included in the kerenl is a platina kernel driver platina-mk1.  It should be loaded automatically on boot and can be verified using 'lsmod' command.  If it is not installed:
-1.  Check '/etc/modules-load.d/goesd-platina-mk1-modules.conf' and make sure it includes "platna-mk1".
-Example of a '/etc/modules-load.d/goesd-platina-mk1-modules.conf' config file:
-```
-# goes-mk1-modules.conf: kernel modules to load at boot time.
-#
-# This file contains the names of kernel modules that should be loaded
-# at boot time, one per line. Lines beginning with "#" are ignored.
-#
-# load the i2c_i801 and platina-mk1 drivers
-i2c_i801
-platina-mk1
-```
-2.  You can also manually load the kernel module
-```
-sudo modprobe platina-mk1
-```
-
-### Upgrading GOES
-
-```
-sudo bash
-wget http://downloads.platinasystems.com/LATEST/goes-platina-mk1
-chmod 755 goes-platina-mk1
-./goes-platina-mk1 install
-```
-goes v1.2.1 and newer require Linux iproute2 version iproute2-ss161212 or newer. On Debian 9(stretch), iproute2-ss161212 is the latest version.  On Debian 8(jessie), upgrade iproute2:
-```
-wget http://http.us.debian.org/debian/pool/main/i/iproute2/iproute2_4.9.0-1+deb9u1_amd64.deb
-apt-get install libelf1
-dpkg -i iproute2_4.9.0-1+deb9u1_amd64.deb
-```
-
+After platina-mk1-release install completes, goes-boot is now written into the flash.  It will take effect on next reboot.
 #### Protip:
-GOES will read in /etc/goes/start bash file on start, and /etc/goes/stop bash file on stop.  The files can include any command available from the goes shell.  Any Linux command can also be included by prefacing command with '!'
-
-Below is an example of a /etc/goes/start file that will ifdown and ifup all the interfaces in /etc/network/interfaces that are tagged with "allow-vnet" on start.
+After platina-mk1-release install completes, kernel version is upated and will be installed on next reboot.
+#### Protip:
+If upgrading from goes v1.2.x to goes v2.x run additionally after the above:
 ```
-#!/usr/bin/goes
-! ifdown -a --allow vnet
-! ifup -a --allow vnet
+sudo apt-get dist-upgrade
+```
+This is because of major changes in dependencies between v1.2.x and v2.x.x.  Once this is done once, subsequent updates/upgrades of platina-mk1-release do not need the "dist-upgrade" command again.
+
+### Upgrading Individual Packages
+The package platina-mk1-release will install any dependent packages.  If needed the packages can be installed individually as well.  Most common is the GOES package running in user space.
+
+Make sure /etc/apt source list includes
+```
+https://platina.io/goes/debian stretch main
+```
+Then:
+```
+sudo apt-get update
+sudo apt-get install goes-platina-mk1
 ```
 
 ### Updating the BMC Firmware
@@ -876,10 +768,6 @@ reboot
 The reboot only reboots the BMC processor, and takes approximately 5 seconds.  It will not impact traffic or activity on the main x86 processor or ASIC.
 
 # Support
-
-For list of known issues, please visit
-
-[*https://github.com/platinasystems/go/issues*](https://github.com/platinasystems/go/issues)
 
 Any questions or to report new issues, please email
 
