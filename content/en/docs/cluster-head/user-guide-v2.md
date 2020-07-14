@@ -471,34 +471,23 @@ multicast packet counters on queue 0
 
 Example:
 
-    goes hget platina-mk1 vnet.xeth9.rx-pipe
+```
+sudo goes hget platina-mk1 vnet.xeth9.pipe_rx | grep packet
 
-    vnet.xeth9.rx-pipe-debug-6: 0
-    vnet.xeth9.rx-pipe-debug-7: 0
-    vnet.xeth9.rx-pipe-debug-8: 0
-    vnet.xeth9.rx-pipe-dst-discard-drops: 0
-    vnet.xeth9.rx-pipe-ecn-counter: 0
-    ...
-
-<a name="fe1counters"/>
-
-### fe1 counters
-
-fe1 counters captures counters not associated with any front panel
-interface. Examples are loopback port and cpu ports as seen back the
-switch ASIC.
-
-Example:
-
-    goes hget platina-mk1 fe1|grep cos0
-
-    vnet.fe1-cpu.bst-tx-queue-cos0-count: 0
-    vnet.fe1-cpu.mmu-multicast-tx-cos0-drop-bytes: 0
-    vnet.fe1-cpu.mmu-multicast-tx-cos0-drop-packets: 0
-    vnet.fe1-cpu.mmu-unicast-tx-cos0-drop-bytes: 0
-    vnet.fe1-cpu.mmu-unicast-tx-cos0-drop-packets: 0
-    ...
-
+vnet.xeth9.pipe_rx_hi_gig_broadcast_packets: 0
+vnet.xeth9.pipe_rx_hi_gig_control_packets: 0
+vnet.xeth9.pipe_rx_hi_gig_l2_multicast_packets: 0
+vnet.xeth9.pipe_rx_hi_gig_l3_multicast_packets: 0 
+vnet.xeth9.pipe_rx_hi_gig_unknown_hgi_packets: 0
+vnet.xeth9.pipe_rx_hi_gig_unknown_opcode_packets: 0
+vnet.xeth9.pipe_rx_ip4_l3_packets: 0
+vnet.xeth9.pipe_rx_ip4_routed_multicast_packets: 0
+vnet.xeth9.pipe_rx_ip6_l3_packets: 0
+vnet.xeth9.pipe_rx_ip6_routed_multicast_packets: 0
+vnet.xeth9.pipe_rx_trill_packets: 0
+vnet.xeth9.pipe_rx_unicast_packets: 0
+vnet.xeth9.pipe_rx_vlan_tagged_packets: 0
+```
 <a name="eth0stats"/>
 
 ### Eth0 stats
@@ -515,16 +504,22 @@ These Redis fields show the content of the EEPROM that includes
 manufacturing information on the specific hardware unit such as the part
 number and serial number.
 
+This example uses the open source redis-cli instead the GOES built-in redis client so the --raw option can be used
 Example:
 
-    goes hget platina eeprom
-
-    eeprom.BaseEthernetAddress: 6c:ec:5a:07:cb:54
-    eeprom.CountryCode: 86
-    eeprom.Crc: 0x4bc3c14e
-    eeprom.DeviceVersion: 0x02
-    eeprom.DiagVersion: DIAG_TOR1_1.1.1
-    ...
+```
+redis-cli --raw hget platina-mk1 eeprom
+eeprom.BaseEthernetAddress: 50:18:4c:00:0a:40
+eeprom.Crc: 0x70aa3f7a
+eeprom.DeviceVersion: 10
+eeprom.ManufactureDate: 2017/06/27 12:38:58
+eeprom.NEthernetAddress: 132
+eeprom.PartNumber: PS-3001-32C-AFA
+eeprom.PlatformName: X86-BDE-4C-16GB-128GB
+eeprom.SerialNumber: FDU1757900018
+eeprom.Vendor: Platina Systems
+eeprom.VendorExtension: ePQR
+```
 
 <a name="appendix2bmcredis"/>
 
@@ -547,11 +542,10 @@ and IPv6 link local address.
 
 ### Connecting via IPv4
 
-By default the BMC eth0 IPv4 address is 192.168.101.100. To connect from
-the device’s Linux CLI:
+By default the BMC eth0 is set to DHCP.  Static address can be configured (see later section on how). Use any standard redis-cli from the main x86 CPU or from anywhere the IPv4 address is reachable to connect to BMC redis.  Example:
 
-    root@platina:~# redis-cli -h 192.168.101.100
-    192.168.101.100:6379> hget platina machine*
+    redis-cli -h 192.168.101.100
+    192.168.101.100:6379> hget platina-mk1-bmc machine*
     "platina-mk1-bmc"
 
 <a name="connectingviaipv6linklocal"/>
@@ -560,26 +554,31 @@ the device’s Linux CLI:
 
 The BMC eth0 IPv6 link local address can be directly translated from the
 BMC eth0 MAC address. The BMC eth0 MAC address is simply the base MAC
-address of the system which can be retrieved from the device’s Linux
-CLI:
+address of the Cluster Head specified in the eeprom content:
+```
+eeprom.BaseEthernetAddress: 50:18:4c:00:0a:40
+```
+For convenience, there is a GOES cli command "mac-ll" that'll build the BMC IPv6 link-local address.
 
-    root@platina:~# goes hget platina eeprom.BaseEthernetAddress
-    50:18:4c:00:13:04
+```
+sudo goes mac-ll
+       Base MAC: 50:18:4c:00:0a:40
+IPv6 link-local: fe80::5218:4cff:fe00:a40
+```
 
-Convert *50:18:4c:00:13:04* MAC address to IPv6 link local:
-fe80::5218:4cff:fe00:1304 and connect to BMC redis:
-
-    root@platina:~# redis-cli -h fe80::5218:4cff:fe00:1304%eth0
-    [fe80::5218:4cff:fe00:1304%eth0]:6379> hget platina machine*
-    "platina-mk1-bmc"
+Use any standard redis-cli from the main x86 CPU or from anywhere where the IPv6 link-local address is reachable to connect to BMC redis.
+```
+redis-cli -h fe80::5218:4cff:fe00:a40%eth0
+[fe80::5218:4cff:fe00:a40%eth0]:6379>
+```
 
 <a name="notablebmcredisfields"/>
 
 ### Notable BMC Redis Fields
 
-Temperature status
+#### Temperature status
 
-    redis-cli --raw -h fe80::5218:4cff:fe00:1304%eth0 hget platina temp
+    redis-cli --raw -h fe80::5218:4cff:fe00:a40%eth0 hget platina-mk1-bmc temp
 
     bmc.temperature.units.C: 37.01
     hwmon.front.temp.units.C: 49.000
@@ -587,77 +586,82 @@ Temperature status
     psu1.temp1.units.C: 33.375
     psu1.temp2.units.C: 37.812
 
-Fan and PSU status
+#### PSU Information
 
-    redis-cli --raw -h fe80::5218:4cff:fe00:1304%eth0 hget platina status
+```
+redis-cli --raw -h fe80::5218:4cff:fe00:a40%eth0 hget platina-mk1-bmc psu | grep -v eeprom 
 
-    fan_tray.1.status: ok.front-&gt;back
-    fan_tray.2.status: ok.front-&gt;back
-    fan_tray.3.status: ok.front-&gt;back
-    fan_tray.4.status: ok.front-&gt;back
-    psu1.status: powered_on
-    psu2.status: not_installed
+psu1.admin.state: enabled
+psu1.fan_direction: front->back
+psu1.fan_speed.units.rpm: 0                                      
+psu1.i_out.units.A: -0.108                                       
+psu1.mfg_id: Great Wall
+psu1.mfg_model: CRPS550
+psu1.p_in.units.W: 0.000
+psu1.p_out.units.W: 0.000
+psu1.sn: PSUQ4000106GW
+psu1.status: powered_off
+psu1.temp1.units.C: 31.500
+psu1.temp2.units.C: 27.438
+psu1.v_in.units.V: 0.000
+psu1.v_out.units.V: 0.000
+psu2.admin.state: enabled
+psu2.fan_direction: front->back
+psu2.fan_speed.units.rpm: 5160
+psu2.i_out.units.A: 9.938
+psu2.mfg_id: Great Wall
+psu2.mfg_model: CRPS550
+psu2.p_in.units.W: 133.000
+psu2.p_out.units.W: 120.000
+psu2.sn: PSUQ4000105GW
+psu2.status: powered_on
+psu2.temp1.units.C: 38.875
+psu2.temp2.units.C: 44.250
+psu2.v_in.units.V: 120.000
+psu2.v_out.units.V: 12.047
+```
 
-Fan Speed
+#### Fan Information
 
-    redis-cli --raw -h fe80::5218:4cff:fe00:1304%eth0 hget platina fan_tray
+```
+redis-cli --raw -h fe80::5218:4cff:fe00:a40%eth0 hget platina-mk1-bmc fan
 
-    fan_tray.1.1.speed.units.rpm: 7031
-    fan_tray.1.2.speed.units.rpm: 7031
-    fan_tray.1.status: ok.front-&gt;back
-    fan_tray.2.1.speed.units.rpm: 7031
-    fan_tray.2.2.speed.units.rpm: 6490
-    fan_tray.2.status: ok.front-&gt;back
-    fan_tray.3.1.speed.units.rpm: 7031
-    fan_tray.3.2.speed.units.rpm: 7031
-    fan_tray.3.status: ok.front-&gt;back
-    fan_tray.4.1.speed.units.rpm: 7031
-    fan_tray.4.2.speed.units.rpm: 6490
-    fan_tray.4.status: ok.front-&gt;back
-    fan_tray.duty: 0x4d
-    fan_tray.speed: auto
-
-<a name="psuinformation"/>
-
-### PSU Information
-
-    redis-cli --raw -h fe80::5218:4cff:fe00:1304%eth0 hget platina psu
-
-    psu1.admin.state: enabled
-    psu1.eeprom:
-    01000000010900f5010819c54757202020cb47572d4352505335353020ca58585858585...
-    psu1.fan_speed.units.rpm: 4020
-    psu1.i_out.units.A: 10.688
-    psu1.mfg_id: Great Wall
-    psu1.mfg_model: CRPS550
-    psu1.p_in.units.W: 141.000
-    psu1.p_out.units.W: 129.000
-    psu1.status: powered_on
-    psu1.temp1.units.C: 33.375
-    psu1.temp2.units.C: 37.812
-    psu1.v_in.units.V: 117.000
-    psu1.v_out.units.V: 12.047
-    psu2.admin.state: enabled
-    psu2.status: not_installed
+fan_tray.1.1.speed.units.rpm: 4128
+fan_tray.1.2.speed.units.rpm: 4005
+fan_tray.2.1.speed.units.rpm: 4017
+fan_tray.2.2.speed.units.rpm: 4054
+fan_tray.3.1.speed.units.rpm: 4128
+fan_tray.3.2.speed.units.rpm: 4166
+fan_tray.4.1.speed.units.rpm: 4153
+fan_tray.4.2.speed.units.rpm: 3970
+fan_tray.duty: 0x30
+fan_tray.speed: auto
+psu1.fan_direction: front->back
+psu1.fan_speed.units.rpm: 0
+psu2.fan_direction: front->back
+psu2.fan_speed.units.rpm: 5040
+system.fan_direction: front->back
+```
 
 <a name="powermonitorinformation"/>
 
-### Power Monitor Information
+#### Power Monitor Information
 
-    redis-cli --raw -h fe80::5218:4cff:fe00:1304%eth0 hget platina vmon
+```
+redis-cli --raw -h fe80::5218:4cff:fe00:a40%eth0 hget platina-mk1-bmc vmon
 
-    vmon.1v0.tha.units.V: 1.041
-    vmon.1v0.thc.units.V: 1.014
-    vmon.1v2.ethx.units.V: 1.187
-    vmon.1v25.sys.units.V: 1.24
-    vmon.1v8.sys.units.V: 1.805
-    vmon.3v3.bmc.units.V: 3.28
-    vmon.3v3.sb.units.V: 3.344
-    vmon.3v3.sys.units.V: 3.298
-    vmon.3v8.bmc.units.V: 3.826
-    vmon.5v.sb.units.V: 4.926
-    vmon.poweroff.events:
-    1970-01-01T23:30:34Z.1970-01-01T23:32:28Z.1970-01-01T23:40:17Z.1970-01-01T23:50:54Z.1970-01-01T23:52:04Z
+vmon.1v0.tha.units.V: 1.038
+vmon.1v0.thc.units.V: 1.01
+vmon.1v2.ethx.units.V: 1.181
+vmon.1v25.sys.units.V: 1.236
+vmon.1v8.sys.units.V: 1.821
+vmon.3v3.bmc.units.V: 3.32
+vmon.3v3.sb.units.V: 3.32
+vmon.3v3.sys.units.V: 3.274
+vmon.3v8.bmc.units.V: 3.821
+vmon.5v.sb.units.V: 5.021
+vmon.poweroff.events: 1970-01-01T00:29:47Z.1970-01-01T00:29:53Z.1970-01-01T17:30:54Z.1970-01-01T17:54:05Z.1970-01-01T16:24:40Z.1970-01-01T16:24:46Z
+```
 
 <a name="softwareandfirmwareupdates"/>
 
