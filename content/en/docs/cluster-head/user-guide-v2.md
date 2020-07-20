@@ -109,10 +109,7 @@ level block diagram is as follows:
 
 ### BMC Processor
 
-BMC processor controls the PSU, board voltage rails, fan speed, and
-other GPIO on the board. For this release, there is nothing to configure
-on the BMC. Everything, including temperature and fan speed, is
-automated.
+BMC processor controls the PSU, board voltage rails, fan speed, and other GPIO on the board. For this release, the BMC defaults to DHCP. You may need to change the IP address if you require static address assignment.
 
 <a name="intelprocessor"/>
 
@@ -152,7 +149,7 @@ upgrade/downgrade, re-install), make sure
 
     https://platina.io/goes/debian stretch main
 
-is in the /etc/apt source list.
+is in the /etc/apt/sources.list file.
 
 Enter the following command:
 
@@ -187,7 +184,7 @@ Each stop/start will reset all ASIC configuration/memory and reinitialize the AS
 
 ## Admin Privilege
 
-GOES binary is install in /sbin/goes-platina-mk1 when the debina package is installed, with /sbin/goes as an alternative.  Admin privilege is required to access it.
+GOES binary is install in /sbin/goes-platina-mk1 when the debian package is installed, with /sbin/goes as an alternative.  Admin privilege is required to access it.
 
 <a name="redisdatabaseinterface"/>
 
@@ -321,7 +318,7 @@ The physical TCAM size in the ASIC is equivalent of 4k IPv4 routes.  Because it 
 
 ## Redis Database/Interface
 
-GOES includes a Redis server daemon. All the GOES managed configuration and stats available from ethtool are also available in redis for pub/sub.  The stats from redis is namespace agnostic so that all interfaces, regardless of what network namespaces they are in, are available from same redis database.  Furthermore, therea some stats, such as ASIC temperature, MFG eeprom contents, etc., that are available only in from redis. The GOES Redis server is a standard Redis server listening on port 6379 of the loopback interface and eth0. The database can be accessed remotely anywhere via standard Redis-client and Redis-cli using the management IP address.
+GOES includes a Redis server daemon. All the GOES managed configuration and stats available from ethtool are also available in redis for pub/sub.  The stats from redis is namespace agnostic so that all interfaces, regardless of what network namespaces they are in, are available from same redis database.  Furthermore, there are some stats, such as ASIC temperature, MFG eeprom contents, etc., that are available only in from redis. The GOES Redis server is a standard Redis server listening on port 6379 of the loopback interface and eth0. The database can be accessed remotely anywhere via standard Redis-client and Redis-cli using the management IP address.
 
 To invoke Redis commands directly from the Linux CLI, precede the Redis
 command with “goes”, otherwise standard Redis command format should be
@@ -670,7 +667,7 @@ vmon.poweroff.events: 1970-01-01T00:29:47Z.1970-01-01T00:29:53Z.1970-01-01T17:30
 ### Updating Cluster Head Platina Debian Package
 Platina software running on the Cluster Head includes the GOES binary is userspace, xeth kernel driver, and GOES-boot which takes the place of typcial BIOS.  They are all packaged into a debian package so that dependencies and configuration are automaticallyd one on install.
 
-Make sure /etc/apt source list includes
+Make sure /etc/apt/sources.list includes 
 ```
 https://platina.io/goes/debian stretch main
 ```
@@ -710,35 +707,70 @@ sudo apt-get install goes-platina-mk1
 ---
 You must upgrade the BMC using the GOES shell on the BMC console. It cannot be upgraded using the system GOES shell. For instructions on how to connect to the BMC console, see the section below titled _Getting to the BMC Console_.
 
-From BMC console CLI, execute the command:
-
-    upgrade -v LATEST -s downloads.platinasystems.com
-
-This will automatically retrieve the upgrade file (platina-mk1-bmc.zip) from http://downloads.platinasystems.com/LATEST/, perform the update, then reboot the BMC to complete the upgrade. This BMC reboot only impacts the BMC and not the running system.
-
-- _LATEST_ above may be replaced by any version control string (e.g. 'v0.2').
-- _downloads.platinasystems.com_ above may be replaced with any reachable HTTP server hostname or IP address. For example: `upgrade -v v0.2 -s 192.168.101.127` will retrieve the URL http://192.168.101.127/v0.2/platina-mk1-bmc.zip.
-- If the -s option is not specified, the default URL (http://downloads.platinasystems.com/) is used to retrieve the update file.
-- To see a list of software revisions available through http://downloads.platinasystems.com/ execute the GOES command `upgrade -l`
-
-## Additional Information
-
-### Download the flash ROM and Coreboot images (if /usr/local/sbin/flashrom doesn't already exist)
-
-To retrieve the flash ROM, execute the following Linux commands:
-
+You must be running GoES-BMC firmware version 1.2.0 in order to upgrade to firmware version 2.0.0 or later. This firmware has a version ID of 20190326. You can verify that you are running this version by executing the following command from the BMC console CLI:
 ```
-sudo bash
-cd ~/
-wget http://downloads.platinasystems.com/tools/flashrom
-wget http://downloads.platinasystems.com/tools/platina-mk1.xml
-chmod 655 flashrom
-mv flashrom /usr/local/sbin/flashrom
-mkdir -p /usr/local/share/flashrom/layouts
-mv platina-mk1.xml /usr/local/share/flashrom/layouts
-
+    upgrade -r
+```   
+The output should look like:
 ```
+       QSPI0 Image Details
+       Name  :  platina-mk1-bmc-ubo.bin
+       Build :  Mar 26 2019 16:52
+       User  :  kph
+       Size  :  524288
+       Tag   :  v2019.01
+       Commit:  22a16c9212615d412ce5397295bb4b37b5f2037f
+       Chksum:  9c05384673f1b4e29565cd0088773dab4564282e
 
+       Name  :  platina-mk1-bmc-dtb.bin
+       Build :  Mar 26 2019 16:52
+       User  :  kph
+       Size  :  32990
+       Tag   :  platina-mk1-v1.2.0
+       Commit:  54bfac8d5932febafd93eebd728c482bd5c59231
+       Chksum:  36ecb5c2c2ff46c79529c60f4828aa912596f6d0
+
+       Name  :  platina-mk1-bmc-env.bin
+       Build :  Mar 26 2019 16:52
+       User  :  kph
+       Size  :  8192
+       Tag   :  v1.2.0-rc.1
+       Commit:  f0db444021f481d050435dec836c99827f265aad
+       Chksum:  d1a6ff4a6c1e1e9a1913926b7cc4c748d243de47
+
+       Name  :  platina-mk1-bmc-ker.bin
+       Build :  Mar 26 2019 16:52
+       User  :  kph
+       Size  :  1766552
+       Tag   :  platina-mk1-v1.2.0
+       Commit:  54bfac8d5932febafd93eebd728c482bd5c59231
+       Chksum:  6e26107888b27aa42e3e07467ff75a441ed36b7f
+
+       Name  :  platina-mk1-bmc-ini.bin
+       Build :  Mar 26 2019 16:52
+       User  :  kph
+       Size  :  3054088
+       Tag   :  UcdFn_dRKV1H0zAWiOpz/6Ytt7U_0m6BACQlAb8AM/DLQI7cZaWqit9d0pLQ3J/vUq6KkMrJJmbTiZrMnhd
+       Commit:  f51b5e1a988055fb876a580e28f251a26670e7ff
+       Chksum:  d6e7acf95f4e43626c0ce16c7b33f125b68b1e72
+
+
+   Installed versions in QSPI flash:
+   * QSPI0 version: 20190326
+     QSPI1 version: 20190326
+
+   Booted from QSPI0
+```
+If the version for QSPI0 is not 20190326, you must first upgrade as follows:
+```
+    upgrade -v v1.2.0 -s downloads.platinasystems.com
+```
+This will automatically retrieve the upgrade file (platina-mk1-bmc.zip) from http://downloads.platinasystems.com/v1.2.0/, perform the update, then reboot the BMC to complete the upgrade. This BMC reboot only impacts the BMC and not the running system.
+
+Once you have verified that you are running v1.2.0, you can upgade to v2.0.0:
+```
+    upgrade -s platina.io/goes/bmc
+```
 ### Getting to the BMC Console
 
 The RS-232 port on the front of the Cluster Head is used to drive the system console of the Platina Cluster Head _and_ the console of the Baseboard Management Controller (BMC). This section demonstrates how to toggle between the BMC console and the system console.
@@ -760,14 +792,21 @@ To switch back to x86 console:
 #### Configuring static IP for the BMC processer
 
 The BMC processor has its own management interface that can be assigned a static IP address.  By default only the IPv6 link local address is assigned to it.
-To assign a static IP address to the BMC processor, enter the following commands at the BMC console
+To assign a static IP address to the BMC processor, edit the file /etc/goes/start:
 
-ipcfg -ip [ipaddress]::[gateway]:[mask]::eth0:on
-reboot
-Example:
+Remove the line:
 ```
-ipcfg -ip 172.17.3.68::172.17.2.1:255.255.254.0::eth0:on
-reboot
+   daemons start dhcpcd
+```
+Replace with (BMC address 172.17.3.63/23 Router address 172.17.2.1):
+```
+   ip link eth0 change up
+   ip address add 172.17.3.63/23 dev eth0
+   ip route add 0.0.0.0/0 via 172.17.2.1
+```
+After you edit the file, reboot the BMC for the changes to take effect:
+```
+   reboot
 ```
 The reboot only reboots the BMC processor, and takes approximately 5 seconds.  It will not impact traffic or activity on the main x86 processor or ASIC.
 
