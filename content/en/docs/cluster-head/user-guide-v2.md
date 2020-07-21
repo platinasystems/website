@@ -671,6 +671,10 @@ Make sure /etc/apt/sources.list includes
 ```
 https://platina.io/goes/debian stretch main
 ```
+Add the debian key for platina.io:
+```
+sudo apt-key adv --keyserver pool.sks-keyservers.net --recv-keys 5FC2206DDF5ACEEA
+```
 Then:
 ```
 sudo apt-get update
