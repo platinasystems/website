@@ -793,6 +793,50 @@ To switch back to x86 console:
 - At the BMC console prompt, execute the `toggle` GOES command.
 - Hit return to display the Linux prompt on the system console
 
+#### To configure the BMC ssh server
+
+The BMC implement the ssh server protocol for remote access to the BMC.
+Additionally, if this unit is the latest hardware revision, it is possible to access the x86 console via
+this SSH connection. The BMC supports only public key authentication. The BMC does not use or check the user
+name specified in the connection. Authorized keys are stored in the file /etc/goes/sshd/authorized_keys.
+Due to line length restrictions in the BMC firmware, you must paste your key three lines at a time. After
+pasting each three lines, press the Control-D key combination twice.
+````
+    platina-mk1-bmc>cat > /etc/goes/sshd/authorized_keys
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+    CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC<Ctrl-D><Ctrl-D>
+    platina-mk1-bmc>cat >> /etc/goes/sshd/authorized_keys
+    DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD
+    EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+    FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF test@example.com
+    <Ctrl-D><Ctrl-D>
+    platina-mk1-bmc> cat /etc/goes/sshd/authorized_keys
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+    CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+    DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD
+    EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+    FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF test@example.com
+````
+
+#### Connecting to x86 from the BMC
+If your hardware version is at last 12, you can connect to the x86 from the BMC.
+#### To check the version (on the x86):
+````
+root@invader63:/home/kph# sudo goes hget platina-mk1 eeprom.DeviceVersion
+12
+````
+#### To connect (on the BMC):
+````
+    platina-mk1-bmc> femtocom -baud 57600 /dev/ttymxc1
+    Type ^A^X to exit.
+
+    Debian GNU/Linux 9 invader63 ttyS1
+
+    invader63 login: 
+````
+
 #### Configuring static IP for the BMC processer
 
 The BMC processor has its own management interface that can be assigned a static IP address.  By default only the IPv6 link local address is assigned to it.
