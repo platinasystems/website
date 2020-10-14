@@ -679,6 +679,7 @@ Then:
 ```
 sudo apt-get update
 sudo apt-get install platina-mk1-release
+sudo apt-get upgrade platina-mk1-release --with-new-pkgs
 ```
 The package install will update the debian kernel (which include any required kernel module like xeth), GOES-boot, and GOES.
 
@@ -704,6 +705,7 @@ Then:
 ```
 sudo apt-get update
 sudo apt-get install goes-platina-mk1
+sudo apt-get upgrade goes-platina-mk1 --with-new-pkgs
 ```
 
 ### Updating the BMC Firmware
