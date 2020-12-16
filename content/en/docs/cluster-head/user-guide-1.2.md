@@ -878,6 +878,44 @@ To switch back to x86 console:
 - At the BMC console prompt, execute the `toggle` GOES command.
 - Hit return to display the Linux prompt on the system console
 
+#### Errata:
+After a "goes toggle" command, the LED clear register gets reset inadvertently and all QSFP port LED will go dark.  To bring the LEDs back to normal operating state:
+
+- at the x86 Linux promt, execute
+```
+sudo i2cget -y 0 0x74 0x06
+```
+Verify that bit 2 is 0; it should be.  Typical value is 0xfb.  If bit 2 is not 0, execute
+```
+sudo i2cset -y 0 0x74 0x06 [value]
+```
+Where [value] is the value read back but with bit 2 flipped to 0.
+- at the x86 Linux promt, execute
+```
+sudo i2cget -y 0 0x74 0x00
+```
+If bit 2 is 1, then all is good.  If bit 2 is 0, then LEDs are switched off.  Execute
+```
+sudo i2cset -y 0 0x74 0x02 [value]
+```
+where [value] is the value read back but with bit 2 flipped to 0.  Note we are reading from register 0x00 but writing to 0x02.
+LEDs should be back to normal at this point.
+
+Example:
+```
+platina@i60:~$ sudo i2cget -y 0 0x74 0x06
+0xfb
+platina@i60:~$ sudo i2cget -y 0 0x74 0x00
+0x03
+platina@i60:~$ sudo i2cset -y 0 0x74 0x02 0x07
+platina@i60:~$ sudo i2cget -y 0 0x74 0x00 
+0x07
+```
+
+The direct i2c commands should be used sparingly, in this case only after a goes toggle command inadvertently triggered LED reset.
+
+This issue is fixed in goes 2.0 and later.
+
 #### Configuring static IP for the BMC processer
 
 The BMC processor has its own management interface that can be assigned a static IP address.  By default only the IPv6 link local address is assigned to it.  
