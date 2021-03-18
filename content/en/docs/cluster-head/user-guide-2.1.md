@@ -859,6 +859,16 @@ After you edit the file, reboot the BMC for the changes to take effect:
 ```
 The reboot only reboots the BMC processor, and takes approximately 5 seconds.  It will not impact traffic or activity on the main x86 processor or ASIC.
 
+#### Protip:
+There are no editors in BMC currently.  Edit the file with echo.
+Example:
+```
+   echo ip link eth0 change up > /etc/goes/start
+   echo ip address add 172.17.3.63/23 dev eth0 >> /etc/goes/start
+   echo ip route add 0.0.0.0/0 via 172.17.2.1 >> /etc/goes/start
+   cat /etc/goes/start
+```
+
 # Support
 
 Any questions or to report new issues, please email
