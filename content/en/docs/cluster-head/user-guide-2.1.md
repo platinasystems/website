@@ -801,8 +801,8 @@ The BMC implement the ssh server protocol for remote access to the BMC.
 Additionally, if this unit is the latest hardware revision, it is possible to access the x86 console via
 this SSH connection. The BMC supports only public key authentication. The BMC does not use or check the user
 name specified in the connection. Authorized keys are stored in the file /etc/goes/sshd/authorized_keys.
-Due to line length restrictions in the BMC firmware, you must paste your key three lines at a time. After
-pasting each three lines, press the Control-D key combination twice.
+We recommend to add PCC's public ssh key as one of the keys. After
+pasting PCC's public key, press the Control-D key combination twice.
 ````
     platina-mk1-bmc>cat > /etc/goes/sshd/authorized_keys
     AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
