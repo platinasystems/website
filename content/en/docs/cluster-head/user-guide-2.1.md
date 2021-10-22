@@ -669,7 +669,7 @@ Platina software running on the Cluster Head includes the GOES binary is userspa
 
 Make sure /etc/apt/sources.list includes 
 ```
-https://platina.io/goes/debian stretch main
+deb https://platina.io/goes/debian stretch main
 ```
 Add the debian key for platina.io:
 ```
