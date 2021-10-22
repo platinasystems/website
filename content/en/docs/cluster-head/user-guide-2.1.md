@@ -673,7 +673,7 @@ https://platina.io/goes/debian stretch main
 ```
 Add the debian key for platina.io:
 ```
-sudo apt-key adv --keyserver pool.sks-keyservers.net --recv-keys 5FC2206DDF5ACEEA
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 5FC2206DDF5ACEEA
 ```
 Then:
 ```
