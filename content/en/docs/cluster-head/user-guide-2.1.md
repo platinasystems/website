@@ -673,7 +673,8 @@ deb https://platina.io/goes/debian stretch main
 ```
 Add the debian key for platina.io:
 ```
-sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 5FC2206DDF5ACEEA
+wget https://platina.io/goes/platina-archive-keyring_1.0_all.deb
+sudo dpkg --install platina-archive-keyring_1.0_all.deb
 ```
 Then:
 ```
