@@ -854,6 +854,19 @@ Replace with (BMC address 172.17.3.63/23 Router address 172.17.2.1):
    ip address add 172.17.3.63/23 dev eth0
    ip route add 0.0.0.0/0 via 172.17.2.1
 ```
+To write the file, please use 'echo.'  vi and nano are not present in GoES. Use this syntax:
+
+```
+   echo ip link eth0 change up > /etc/goes/start
+   echo ip address add 10.163.201.106/23 dev eth0 >> /etc/goes/start
+   echo ip route add 0.0.0.0/0 via 10.163.201.254 >> /etc/goes/start
+   cat /etc/goes/start
+   reboot
+```
+
+“>” replaces the file content
+“>>” appends it
+
 After you edit the file, reboot the BMC for the changes to take effect:
 ```
    reboot
